@@ -12,7 +12,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send message to Slack
+        env:name: Post Futsal Reminder
+
+on:
+  # 毎週月曜日 0:00 (UTC) = 日本時間 月曜 9:00
+  schedule:
+    - cron: "0 0 * * 1"
+  # 手動実行用（テスト）
+  workflow_dispatch:
+
+jobs:
+  send-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send message to Slack
         env:
+          
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          
+          SLACK_CHANNEL: CRUMKBS8G
+        run: |
+          echo "Token length: ${#SLACK_BOT_TOKEN}"
+          if [ -z "$SLACK_BOT_TOKEN" ]; then
+            echo "ERROR: SLACK_BOT_TOKEN is empty"
+            exit 1
+          fi
+
+          payload='{
+            "channel": "'"$SLACK_CHANNEL"'",
+            "text": "今週のフットサルのお知らせ⚽\n今週水曜日にフットサルを行います！参加する人は:+1:スタンプで反応よろしくお願いします。\n\nまた、\n自分の車で行く人：:car:\n車での送迎が必要な人：:無マーク:\nで反応よろしくお願いします。\n\n持ち物：体育館用シューズ 飲み物、タオル、着替え\n時間：19:00-21:00\n車ない組は学生駐車場に18:20-30くらいに迎えに行きます。\n＊人数が揃わなかったら、未開催の可能性もあります。\n\nhttps://maps.app.goo.gl/83JPymF25bB3Vt8x8\nhttps://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
+          }'
+
+          echo "=== payload ==="
+          echo "$payload"
+
+          response=$(curl -sS -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-type: application/json; charset=utf-8" \
+            --data "$payload")
+
+          echo "=== Slack response ==="
+          echo "$response"
+
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: CRUMKBS8G
         run: |
