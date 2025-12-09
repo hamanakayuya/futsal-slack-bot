@@ -15,7 +15,7 @@ jobs:
       - name: Delete last bot message in channel
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: C1234567890   # ← ここも #random のチャンネルIDに変更
+          SLACK_CHANNEL: https://2020-nc73611.slack.com/archives/CRUMKBS8G   # ← ここも #random のチャンネルIDに変更
         run: |
           # 直近のメッセージ履歴を取得
           response=$(curl -sS -X GET "https://slack.com/api/conversations.history?channel=$SLACK_CHANNEL&limit=20" \
