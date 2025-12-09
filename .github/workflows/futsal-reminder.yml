@@ -1,0 +1,20 @@
+name: Post Futsal Reminder
+
+on:
+  # 毎週月曜日 0:00 (UTC) = 日本時間 月曜 9:00
+  schedule:
+    - cron: "0 0 * * 1"
+  # 手動実行用（テスト用ボタン）
+  workflow_dispatch:
+
+jobs:
+  send-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send message to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"⚽ *今週のフットサルのお知らせ* ⚽\n今週水曜日にフットサルを行います！参加できる人はリアクションお願いします🙌\n\n🟢 行ける\n🚗 車出せる\n🆓 送迎必要"}' \
+          "$SLACK_WEBHOOK_URL"
