@@ -1,0 +1,42 @@
+name: Delete Last Futsal Message
+
+on:
+  workflow_dispatch:  # 手動実行のみ
+
+jobs:
+  delete-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Delete last bot message in channel
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: C1234567890   # ← ここも #random のチャンネルIDに変更
+        run: |
+          # 直近のメッセージ履歴を取得
+          response=$(curl -sS -X GET "https://slack.com/api/conversations.history?channel=$SLACK_CHANNEL&limit=20" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN")
+
+          echo "$response"
+
+          # Bot が投稿した最新メッセージの ts を取り出す
+          ts=$(echo "$response" | jq -r '.messages[] | select(.bot_id != null) | .ts' | head -n 1)
+
+          if [ -z "$ts" ] || [ "$ts" = "null" ]; then
+            echo "削除対象の Bot メッセージが見つかりませんでした。"
+            exit 0
+          fi
+
+          echo "削除するメッセージ ts: $ts"
+
+          # メッセージ削除
+          del_result=$(curl -sS -X POST https://slack.com/api/chat.delete \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-type: application/json; charset=utf-8" \
+            --data "{\"channel\":\"$SLACK_CHANNEL\",\"ts\":\"$ts\"}")
+
+          echo "$del_result"
