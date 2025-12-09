@@ -14,7 +14,7 @@ jobs:
       - name: Send message to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: https://2020-nc73611.slack.com/archives/CRUMKBS8G
+          SLACK_CHANNEL: CRUMKBS8G
         run: |
           payload='{
             "channel": "'"$SLACK_CHANNEL"'",
