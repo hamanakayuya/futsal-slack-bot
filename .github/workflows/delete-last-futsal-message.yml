@@ -1,42 +1,98 @@
-name: Delete Last Futsal Message
+name: Delete last futsal message
 
 on:
-  workflow_dispatch:  # 手動実行のみ
+  # 手動実行専用（誤投稿したときだけ自分で押す）
+  workflow_dispatch:
 
 jobs:
   delete-message:
     runs-on: ubuntu-latest
+
     steps:
       - name: Install jq
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Delete last bot message in channel
+      - name: Delete last futsal reminder from FutsalBot
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: CRUMKBS8G   # ← ここも #random のチャンネルIDに変更
+          SLACK_CHANNEL: CRUMKBS8G   # フットサル案内を送っているチャンネルID
         run: |
-          # 直近のメッセージ履歴を取得
-          response=$(curl -sS -X GET "https://slack.com/api/conversations.history?channel=$SLACK_CHANNEL&limit=20" \
+          set -euo pipefail
+
+          if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
+            echo "ERROR: SLACK_BOT_TOKEN is empty"
+            exit 1
+          fi
+
+          # まずこのトークンがどのユーザー（Bot）かを確認
+          auth_res=$(curl -sS -X POST "https://slack.com/api/auth.test" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-type: application/x-www-form-urlencoded")
+
+          echo "=== auth.test ==="
+          echo "$auth_res"
+
+          ok=$(echo "$auth_res" | jq -r '.ok')
+          if [ "$ok" != "true" ]; then
+            echo "ERROR: auth.test failed"
+            exit 1
+          fi
+
+          BOT_USER_ID=$(echo "$auth_res" | jq -r '.user_id')
+          echo "BOT_USER_ID = $BOT_USER_ID"
+
+          # チャンネルの最近のメッセージを取得（新しい順）
+          history=$(curl -sS -X GET "https://slack.com/api/conversations.history?channel=$SLACK_CHANNEL&limit=100" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN")
 
-          echo "$response"
+          echo "=== conversations.history (truncated) ==="
+          echo "$history" | jq '{ok, error, messages: .messages[0:5]}'
 
-          # Bot が投稿した最新メッセージの ts を取り出す
-          ts=$(echo "$response" | jq -r '.messages[] | select(.bot_id != null) | .ts' | head -n 1)
+          ok=$(echo "$history" | jq -r '.ok')
+          if [ "$ok" != "true" ]; then
+            echo "ERROR: conversations.history failed"
+            exit 1
+          fi
 
-          if [ -z "$ts" ] || [ "$ts" = "null" ]; then
-            echo "削除対象の Bot メッセージが見つかりませんでした。"
+          # 条件:
+          #  - この Bot (BOT_USER_ID) が送ったメッセージ
+          #  - text が「今週のフットサルのお知らせ」で始まる
+          # の中から「一番新しいもの」を1件だけ取得
+          ts=$(echo "$history" \
+            | jq -r --arg BOT_USER_ID "$BOT_USER_ID" '
+                .messages[]
+                | select(.user == $BOT_USER_ID)
+                | select(.text | startswith("今週のフットサルのお知らせ"))
+                | .ts
+              ' \
+            | head -n 1)
+
+          if [ -z "${ts:-}" ]; then
+            echo "削除対象のフットサル案内メッセージが見つかりませんでした。"
             exit 0
           fi
 
-          echo "削除するメッセージ ts: $ts"
+          echo "=== delete target ts = $ts ==="
 
-          # メッセージ削除
-          del_result=$(curl -sS -X POST https://slack.com/api/chat.delete \
+          del_payload=$(jq -n \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg ts "$ts" \
+            '{channel: $channel, ts: $ts}')
+
+          del_res=$(curl -sS -X POST "https://slack.com/api/chat.delete" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-type: application/json; charset=utf-8" \
-            --data "{\"channel\":\"$SLACK_CHANNEL\",\"ts\":\"$ts\"}")
+            --data "$del_payload")
 
-          echo "$del_result"
+          echo "=== chat.delete response ==="
+          echo "$del_res"
+
+          ok=$(echo "$del_res" | jq -r '.ok')
+          if [ "$ok" != "true" ]; then
+            echo "ERROR: chat.delete failed"
+            exit 1
+          fi
+
+          echo "✅ フットサル案内メッセージを削除しました。"
