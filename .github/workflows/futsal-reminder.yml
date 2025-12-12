@@ -12,6 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # reactions.add で JSON をいじるので jq をインストール
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Post futsal reminder and add reactions
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -50,6 +56,7 @@ ${FUTSAL_DATE_DISPLAY} にフットサルを行います！
 https://maps.app.goo.gl/83JPymF25bB3Vt8x8
 https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
 
+          # Slack に送る JSON ペイロード
           payload=$(jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg text "$text" \
@@ -73,6 +80,7 @@ https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
             exit 1
           fi
 
+          # 送信したメッセージの ts を取得
           ts=$(echo "$response" | jq -r '.ts')
 
           # ===== 送信したメッセージにリアクションを追加 =====
