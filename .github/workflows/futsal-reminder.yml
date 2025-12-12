@@ -10,32 +10,84 @@ on:
 jobs:
   send-message:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Send message to Slack
+      - name: Post futsal reminder and add reactions
         env:
-          
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          
-          SLACK_CHANNEL: CRUMKBS8G
+          SLACK_CHANNEL: CRUMKBS8G   # 通知したいチャンネルのID
         run: |
-          echo "Token length: ${#SLACK_BOT_TOKEN}"
-          if [ -z "$SLACK_BOT_TOKEN" ]; then
+          set -euo pipefail
+
+          if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
             echo "ERROR: SLACK_BOT_TOKEN is empty"
             exit 1
           fi
 
-          payload='{
-            "channel": "'"$SLACK_CHANNEL"'",
-            "text": "今週のフットサルのお知らせ⚽\n今週水曜日にフットサルを行います！参加する人は:+1:スタンプで反応よろしくお願いします。\n\nまた、\n自分の車で行く人：:car:\n車での送迎が必要な人：:無マーク:\nで反応よろしくお願いします。\n\n持ち物：体育館用シューズ 飲み物、タオル、着替え\n時間：19:00-21:00\n車ない組は学生駐車場に18:20-30くらいに迎えに行きます。\n＊人数が揃わなかったら、未開催の可能性もあります。\n\nhttps://maps.app.goo.gl/83JPymF25bB3Vt8x8\nhttps://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
-          }'
+          # ===== 日付計算（今週の水曜日） =====
+          export TZ=Asia/Tokyo
+
+          # 「次の水曜日」の日付を取得
+          FUTSAL_DATE_YMD=$(date -d "next wed" "+%Y-%m-%d")
+          FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")  # 例: 2025-12-10(水)
+
+          # ===== お知らせメッセージ本文 =====
+          text="今週のフットサルのお知らせ⚽
+${FUTSAL_DATE_DISPLAY} にフットサルを行います！
+参加する人は:+1:スタンプで反応よろしくお願いします。
+
+また、
+自分の車で行く人：:車:
+車での送迎が必要な人：:無マーク:
+送迎の車が決まっている人：:感謝:
+で反応よろしくお願いします。
+
+持ち物：体育館用シューズ 飲み物、タオル、着替え
+時間：19:00-21:00
+車ない組は学生駐車場に18:20-30くらいに迎えに行きます。
+＊人数が揃わなかったら、未開催の可能性もあります。
+
+https://maps.app.goo.gl/83JPymF25bB3Vt8x8
+https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
+
+          payload=$(jq -n \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg text "$text" \
+            '{channel: $channel, text: $text}')
 
           echo "=== payload ==="
           echo "$payload"
 
-          response=$(curl -sS -X POST https://slack.com/api/chat.postMessage \
+          # ===== メッセージ送信 =====
+          response=$(curl -sS -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-type: application/json; charset=utf-8" \
             --data "$payload")
 
           echo "=== Slack response ==="
           echo "$response"
+
+          ok=$(echo "$response" | jq -r '.ok')
+          if [ "$ok" != "true" ]; then
+            echo "ERROR: chat.postMessage failed"
+            exit 1
+          fi
+
+          ts=$(echo "$response" | jq -r '.ts')
+
+          # ===== 送信したメッセージにリアクションを追加 =====
+          # emoji の name は :名前: の「名前」の部分
+          for emoji in "+1" "車" "無マーク" "感謝"; do
+            react_payload=$(jq -n \
+              --arg name "$emoji" \
+              --arg channel "$SLACK_CHANNEL" \
+              --arg ts "$ts" \
+              '{name: $name, channel: $channel, timestamp: $ts}')
+
+            react_res=$(curl -sS -X POST "https://slack.com/api/reactions.add" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-type: application/json; charset=utf-8" \
+              --data "$react_payload")
+
+            echo "Add reaction $emoji => $react_res"
+          done
