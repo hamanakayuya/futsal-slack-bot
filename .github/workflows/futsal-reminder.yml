@@ -26,9 +26,27 @@ jobs:
             exit 1
           fi
 
+          # ===== 日本時間に設定 =====
           export TZ=Asia/Tokyo
-          FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")
 
+          # ===== 次回水曜日の日付を取得 =====
+          FUTSAL_DATE=$(date -d "next wed" "+%Y-%m-%d")
+          WEEKDAY_EN=$(date -d "next wed" "+%a")
+
+          # ===== 英語曜日 → 日本語曜日 =====
+          case "$WEEKDAY_EN" in
+            Mon) WEEKDAY_JA="月" ;;
+            Tue) WEEKDAY_JA="火" ;;
+            Wed) WEEKDAY_JA="水" ;;
+            Thu) WEEKDAY_JA="木" ;;
+            Fri) WEEKDAY_JA="金" ;;
+            Sat) WEEKDAY_JA="土" ;;
+            Sun) WEEKDAY_JA="日" ;;
+          esac
+
+          FUTSAL_DATE_DISPLAY="${FUTSAL_DATE}（${WEEKDAY_JA}）"
+
+          # ===== Slack投稿本文 =====
           text=$'今週のフットサルのお知らせ⚽\n__DATE__ にフットサルを行います！\n参加する人は:+1:スタンプで反応よろしくお願いします。\n\nまた、\n自分の車で行く人：:車:\n車での送迎が必要な人：:無マーク:\n送迎の車が決まっている人：:感謝:\nで反応よろしくお願いします。\n\n持ち物：体育館用シューズ 飲み物、タオル、着替え\n時間：19:00-21:00\n車ない組は学生駐車場に18:20-30くらいに迎えに行きます。\n＊人数が揃わなかったら、未開催の可能性もあります。\n\nhttps://maps.app.goo.gl/83JPymF25bB3Vt8x8\nhttps://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic'
 
           text="${text/__DATE__/${FUTSAL_DATE_DISPLAY}}"
@@ -54,6 +72,7 @@ jobs:
 
           ts=$(echo "$response" | jq -r '.ts')
 
+          # ===== リアクション追加 =====
           for emoji in "+1" "車" "無マーク" "感謝"; do
             react_payload=$(jq -n \
               --arg name "$emoji" \
