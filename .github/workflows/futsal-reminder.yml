@@ -1,18 +1,14 @@
 name: Post Futsal Reminder
 
 on:
-  # 毎週月曜日 0:00 (UTC) = 日本時間 月曜 9:00
   schedule:
-    - cron: "0 0 * * 1"
-  # 手動実行用（テスト）
+    - cron: "0 0 * * 1"  # 毎週月曜 0:00(UTC) = 月曜 9:00(JST)
   workflow_dispatch:
 
 jobs:
   send-message:
     runs-on: ubuntu-latest
-
     steps:
-      # reactions.add で JSON をいじるので jq をインストール
       - name: Install jq
         run: |
           sudo apt-get update
@@ -33,8 +29,9 @@ jobs:
           export TZ=Asia/Tokyo
           FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")
 
-          text="今週のフットサルのお知らせ⚽
-${FUTSAL_DATE_DISPLAY} にフットサルを行います！
+          text=$(cat <<'EOF'
+今週のフットサルのお知らせ⚽
+__DATE__ にフットサルを行います！
 参加する人は:+1:スタンプで反応よろしくお願いします。
 
 また、
@@ -49,15 +46,16 @@ ${FUTSAL_DATE_DISPLAY} にフットサルを行います！
 ＊人数が揃わなかったら、未開催の可能性もあります。
 
 https://maps.app.goo.gl/83JPymF25bB3Vt8x8
-https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
+https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic
+          EOF
+          )
+
+          text="${text/__DATE__/${FUTSAL_DATE_DISPLAY}}"
 
           payload=$(jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg text "$text" \
             '{channel: $channel, text: $text}')
-
-          echo "=== payload ==="
-          echo "$payload"
 
           response=$(curl -sS -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
