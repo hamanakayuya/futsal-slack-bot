@@ -18,10 +18,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Post futsal reminder and add reactions
+            - name: Post futsal reminder and add reactions
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: CRUMKBS8G   # 通知したいチャンネルのID
+          SLACK_CHANNEL: CRUMKBS8G
         run: |
           set -euo pipefail
 
@@ -30,36 +30,31 @@ jobs:
             exit 1
           fi
 
-          # ===== 日付計算（今週の水曜日） =====
           export TZ=Asia/Tokyo
 
-          # 「次の水曜日」の日付を取得
-          FUTSAL_DATE_YMD=$(date -d "next wed" "+%Y-%m-%d")
-          FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")  # 例: 2025-12-10(水)
+          FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")
 
-          # ===== お知らせメッセージ本文 =====
           text=$(cat <<EOF
 今週のフットサルのお知らせ⚽
 ${FUTSAL_DATE_DISPLAY} にフットサルを行います！
 参加する人は:+1:スタンプで反応よろしくお願いします。
-          
+
 また、
 自分の車で行く人：:車:
 車での送迎が必要な人：:無マーク:
 送迎の車が決まっている人：:感謝:
 で反応よろしくお願いします。
-          
+
 持ち物：体育館用シューズ 飲み物、タオル、着替え
 時間：19:00-21:00
 車ない組は学生駐車場に18:20-30くらいに迎えに行きます。
 ＊人数が揃わなかったら、未開催の可能性もあります。
-          
+
 https://maps.app.goo.gl/83JPymF25bB3Vt8x8
 https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic
 EOF
-)
+          )
 
-          # Slack に送る JSON ペイロード
           payload=$(jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg text "$text" \
@@ -68,7 +63,6 @@ EOF
           echo "=== payload ==="
           echo "$payload"
 
-          # ===== メッセージ送信 =====
           response=$(curl -sS -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-type: application/json; charset=utf-8" \
@@ -83,11 +77,8 @@ EOF
             exit 1
           fi
 
-          # 送信したメッセージの ts を取得
           ts=$(echo "$response" | jq -r '.ts')
 
-          # ===== 送信したメッセージにリアクションを追加 =====
-          # emoji の name は :名前: の「名前」の部分
           for emoji in "+1" "車" "無マーク" "感謝"; do
             react_payload=$(jq -n \
               --arg name "$emoji" \
