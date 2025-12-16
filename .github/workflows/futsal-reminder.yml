@@ -1,6 +1,6 @@
 name: Post Futsal Reminder
 
-on:
+'on':
   schedule:
     - cron: "0 0 * * 1"  # 毎週月曜 0:00(UTC) = 月曜 9:00(JST)
   workflow_dispatch:
@@ -29,24 +29,7 @@ jobs:
           export TZ=Asia/Tokyo
           FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")
 
-          text=$(printf '%s\n' \
-'今週のフットサルのお知らせ⚽' \
-'__DATE__ にフットサルを行います！' \
-'参加する人は:+1:スタンプで反応よろしくお願いします。' \
-'' \
-'また、' \
-'自分の車で行く人：:車:' \
-'車での送迎が必要な人：:無マーク:' \
-'送迎の車が決まっている人：:感謝:' \
-'で反応よろしくお願いします。' \
-'' \
-'持ち物：体育館用シューズ 飲み物、タオル、着替え' \
-'時間：19:00-21:00' \
-'車ない組は学生駐車場に18:20-30くらいに迎えに行きます。' \
-'＊人数が揃わなかったら、未開催の可能性もあります。' \
-'' \
-'https://maps.app.goo.gl/83JPymF25bB3Vt8x8' \
-'https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic')
+          text=$'今週のフットサルのお知らせ⚽\n__DATE__ にフットサルを行います！\n参加する人は:+1:スタンプで反応よろしくお願いします。\n\nまた、\n自分の車で行く人：:車:\n車での送迎が必要な人：:無マーク:\n送迎の車が決まっている人：:感謝:\nで反応よろしくお願いします。\n\n持ち物：体育館用シューズ 飲み物、タオル、着替え\n時間：19:00-21:00\n車ない組は学生駐車場に18:20-30くらいに迎えに行きます。\n＊人数が揃わなかったら、未開催の可能性もあります。\n\nhttps://maps.app.goo.gl/83JPymF25bB3Vt8x8\nhttps://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic'
 
           text="${text/__DATE__/${FUTSAL_DATE_DISPLAY}}"
 
