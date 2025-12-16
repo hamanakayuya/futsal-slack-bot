@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-            - name: Post futsal reminder and add reactions
+      - name: Post futsal reminder and add reactions
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: CRUMKBS8G
@@ -31,11 +31,9 @@ jobs:
           fi
 
           export TZ=Asia/Tokyo
-
           FUTSAL_DATE_DISPLAY=$(date -d "next wed" "+%Y-%m-%d(%a)")
 
-          text=$(cat <<EOF
-今週のフットサルのお知らせ⚽
+          text="今週のフットサルのお知らせ⚽
 ${FUTSAL_DATE_DISPLAY} にフットサルを行います！
 参加する人は:+1:スタンプで反応よろしくお願いします。
 
@@ -51,9 +49,7 @@ ${FUTSAL_DATE_DISPLAY} にフットサルを行います！
 ＊人数が揃わなかったら、未開催の可能性もあります。
 
 https://maps.app.goo.gl/83JPymF25bB3Vt8x8
-https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic
-EOF
-          )
+https://maps.app.goo.gl/xZigqaTk1DdFKdFy6?g_st=ic"
 
           payload=$(jq -n \
             --arg channel "$SLACK_CHANNEL" \
